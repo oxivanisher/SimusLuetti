@@ -8,6 +8,7 @@
 | DFPlayer Mini | Includes onboard micro-SD slot |
 | Micro-SD card | FAT32, ≤32 GB |
 | Resistor 1 kΩ | Protects DFPlayer RX from 3.3 V logic |
+| Capacitor 100 µF electrolytic | Stabilises DFPlayer VCC during SD card power spikes — **strongly recommended** |
 | Push button | Normally-open, doorbell wire |
 
 ---
@@ -65,8 +66,8 @@ If your amplifier is mono, connect DAC_R (or bridge DAC_R+DAC_L via equal 10 kΩ
                   │             D5  ├──────────────── DFPlayer TX
                   │        1kΩ  D6  ├──┤R├─────────── DFPlayer RX
                   │             D1  ├──────────────── DFPlayer BUSY
-                  │             5V  ├──────────────── DFPlayer VCC
-                  │            GND  ├──────────────── DFPlayer GND
+                  │             5V  ├──────────────── DFPlayer VCC ──┬── 100µF ──┐
+                  │            GND  ├──────────────── DFPlayer GND ──┴───────────┘
                   └─────────────────┘
 
 DFPlayer SPK_1 / SPK_2  →  speaker (option A)
@@ -89,6 +90,17 @@ DFPlayer DAC_R / DAC_L  →  external amp input (option B)
 
 3. Keep filenames sequential with no gaps — the DFPlayer uses FAT table order, not alphabetical order, so numbering prevents unexpected playback sequences.
 4. Maximum 255 files in the root using this naming scheme.
+
+**MP3 encoding requirements** — the DFPlayer requires CBR (constant bitrate) MP3s. VBR files cause static or choppy playback. Re-encode with ffmpeg before copying:
+
+```bash
+mkdir -p converted
+for i in *.mp3; do
+  ffmpeg -i "$i" -codec:a libmp3lame -b:a 128k -ar 44100 -ac 1 "converted/$i"
+done
+```
+
+Then rename the output files to `001.mp3`, `002.mp3`, … and copy them to the SD card root.
 
 ---
 

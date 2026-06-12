@@ -4,27 +4,31 @@
 #include <ESP8266WiFi.h>
 
 // ── Pin assignments ──────────────────────────────────────────────────────────
-#define PIN_BUTTON   D7   // GPIO13 — doorbell wire (active-low, internal pull-up)
-#define PIN_DF_RX    D5   // GPIO14 — data from DFPlayer TX
-#define PIN_DF_TX    D6   // GPIO12 — data to DFPlayer RX (via 1 kΩ series resistor)
-#define PIN_DF_BUSY  D1   // GPIO5  — DFPlayer BUSY line (LOW = currently playing)
+#define PIN_BUTTON D7  // GPIO13 — doorbell wire (active-low, internal pull-up)
+#define PIN_DF_RX D5   // GPIO14 — data from DFPlayer TX
+#define PIN_DF_TX D6   // GPIO12 — data to DFPlayer RX (via 1 kΩ series resistor)
+#define PIN_DF_BUSY D1 // GPIO5  — DFPlayer BUSY line (LOW = currently playing)
 
 // ── Config ───────────────────────────────────────────────────────────────────
-#define VOLUME       25   // 0–30
-#define DEBOUNCE_MS  80   // ms to wait for button contact to settle
+#define VOLUME 30      // 0–30
+#define DEBOUNCE_MS 80 // ms to wait for button contact to settle
 
 SoftwareSerial dfSerial(PIN_DF_RX, PIN_DF_TX);
 DFRobotDFPlayerMini player;
 
 int totalTracks = 0;
+int lastTrack   = -1;
 
-bool isPlaying() {
+bool isPlaying()
+{
     return digitalRead(PIN_DF_BUSY) == LOW;
 }
 
-void blinkPanic() {
-    // Indicates DFPlayer did not initialise — check wiring and SD card.
-    while (true) {
+void blinkPanic(const char *msg)
+{
+    Serial.println(msg);
+    while (true)
+    {
         digitalWrite(LED_BUILTIN, LOW);
         delay(150);
         digitalWrite(LED_BUILTIN, HIGH);
@@ -32,30 +36,44 @@ void blinkPanic() {
     }
 }
 
-void setup() {
+void setup()
+{
+    Serial.begin(115200);
+    Serial.println("\n[doorbell] boot");
+
     // Kill WiFi immediately — not needed, saves ~70 mA.
     WiFi.mode(WIFI_OFF);
     WiFi.forceSleepBegin();
     delay(1);
 
-    pinMode(PIN_BUTTON,  INPUT_PULLUP);
+    pinMode(PIN_BUTTON, INPUT_PULLUP);
     pinMode(PIN_DF_BUSY, INPUT);
     pinMode(LED_BUILTIN, OUTPUT);
     digitalWrite(LED_BUILTIN, HIGH); // active-low, so HIGH = off
 
     dfSerial.begin(9600);
+    delay(1000); // give DFPlayer time to power up before talking to it
 
-    // false = no ACK (more robust across DFPlayer clone variants)
-    if (!player.begin(dfSerial, false, true)) {
-        blinkPanic();
-    }
+    // isACK=false, doReset=false: skip handshake entirely — more tolerant of clones
+    player.begin(dfSerial, false, false);
+    delay(500);
+    Serial.println("[doorbell] DFPlayer init sent");
 
     player.volume(VOLUME);
     delay(200);
 
-    totalTracks = player.readFileCounts();
-    if (totalTracks <= 0) {
-        blinkPanic(); // SD card empty or unreadable
+    for (int attempt = 1; attempt <= 5 && totalTracks <= 0; attempt++) {
+        totalTracks = player.readFileCounts();
+        Serial.print("[doorbell] readFileCounts() attempt ");
+        Serial.print(attempt);
+        Serial.print(" returned: ");
+        Serial.println(totalTracks);
+        if (totalTracks <= 0) delay(500);
+    }
+    if (totalTracks <= 0)
+    {
+        Serial.println("[doorbell] check: DFPlayer TX->D5, DFPlayer RX->D6, VCC->5V, 100uF cap on VCC/GND");
+        blinkPanic("[doorbell] halted");
     }
 
     // Mix analog noise + time for a good-enough random seed.
@@ -67,25 +85,34 @@ void setup() {
     digitalWrite(LED_BUILTIN, HIGH);
 }
 
-void loop() {
-    static bool stableState  = HIGH;
-    static bool lastRaw      = HIGH;
+void loop()
+{
+    static bool stableState = HIGH;
+    static bool lastRaw = HIGH;
     static unsigned long lastChange = 0;
 
     bool raw = digitalRead(PIN_BUTTON);
 
-    if (raw != lastRaw) {
+    if (raw != lastRaw)
+    {
         lastChange = millis();
-        lastRaw    = raw;
+        lastRaw = raw;
     }
 
     // Stable edge detected after debounce window
-    if ((millis() - lastChange) > DEBOUNCE_MS && raw != stableState) {
+    if ((millis() - lastChange) > DEBOUNCE_MS && raw != stableState)
+    {
         stableState = raw;
 
         // Falling edge = button pressed; ignore while a track is still playing.
-        if (stableState == LOW && !isPlaying()) {
-            player.play(random(1, totalTracks + 1));
+        if (stableState == LOW && !isPlaying())
+        {
+            int track;
+            do { track = random(1, totalTracks + 1); } while (track == lastTrack && totalTracks > 1);
+            lastTrack = track;
+            Serial.print("[doorbell] playing track ");
+            Serial.println(track);
+            player.play(track);
         }
     }
 }
