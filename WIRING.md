@@ -1,0 +1,110 @@
+# Doorbell Wiring Guide
+
+## Parts
+
+| Part | Notes |
+|---|---|
+| ESP8266 D1 Mini | Any revision |
+| DFPlayer Mini | Includes onboard micro-SD slot |
+| Micro-SD card | FAT32, ≤32 GB |
+| Resistor 1 kΩ | Protects DFPlayer RX from 3.3 V logic |
+| Push button | Normally-open, doorbell wire |
+
+---
+
+## Pin connections
+
+### ESP8266 D1 Mini → DFPlayer Mini
+
+| D1 Mini pin | Label | DFPlayer pin | Notes |
+|---|---|---|---|
+| 5V | 5V | VCC | Power — 5 V preferred |
+| GND | GND | GND | Common ground |
+| D5 (GPIO14) | DF_RX | TX | Serial data from DFPlayer |
+| D6 (GPIO12) | DF_TX | RX | Serial data to DFPlayer — **put 1 kΩ resistor in series** |
+| D1 (GPIO5) | DF_BUSY | BUSY | LOW while a track plays |
+
+### Doorbell button
+
+| D1 Mini pin | Button wire |
+|---|---|
+| D7 (GPIO13) | Wire A (from doorbell) |
+| GND | Wire B (from doorbell) |
+
+The internal pull-up is enabled in firmware — no external resistor needed.
+
+### Audio output
+
+Use **one** of these two options depending on your amplifier:
+
+**Option A — DFPlayer onboard amplifier (up to 3 W, 4–8 Ω speaker)**
+
+| DFPlayer pin | Speaker |
+|---|---|
+| SPK_1 | Speaker + |
+| SPK_2 | Speaker − |
+
+**Option B — External amplifier (line-level, already installed)**
+
+| DFPlayer pin | Amplifier input |
+|---|---|
+| DAC_R | Right channel (or mono) |
+| DAC_L | Left channel (optional) |
+| GND | Amplifier ground |
+
+If your amplifier is mono, connect DAC_R (or bridge DAC_R+DAC_L via equal 10 kΩ resistors to a single input).
+
+---
+
+## Wiring diagram
+
+```
+                  ┌─────────────────┐
+     Doorbell ────┤ D7    D1 Mini   │
+     GND ─────────┤ GND             │
+                  │             D5  ├──────────────── DFPlayer TX
+                  │        1kΩ  D6  ├──┤R├─────────── DFPlayer RX
+                  │             D1  ├──────────────── DFPlayer BUSY
+                  │             5V  ├──────────────── DFPlayer VCC
+                  │            GND  ├──────────────── DFPlayer GND
+                  └─────────────────┘
+
+DFPlayer SPK_1 / SPK_2  →  speaker (option A)
+DFPlayer DAC_R / DAC_L  →  external amp input (option B)
+```
+
+---
+
+## SD card setup
+
+1. Format the card as **FAT32**. Cards ≥32 GB ship as exFAT — reformat them (DFPlayer Mini supports up to 32 GB FAT32). On Windows use `format E: /FS:FAT32 /Q`; on Linux `sudo mkfs.fat -F 32 /dev/sdX1`; on macOS use Disk Utility and choose MS-DOS (FAT).
+2. Place MP3 files in the **root directory**, named with a zero-padded three-digit number:
+
+   ```
+   001.mp3
+   002.mp3
+   003.mp3
+   ...
+   ```
+
+3. Keep filenames sequential with no gaps — the DFPlayer uses FAT table order, not alphabetical order, so numbering prevents unexpected playback sequences.
+4. Maximum 255 files in the root using this naming scheme.
+
+---
+
+## Volume
+
+`VOLUME` is set to `25` (out of 30) in `src/main.cpp`. Adjust to taste before flashing:
+
+```cpp
+#define VOLUME  25   // 0–30
+```
+
+---
+
+## Status LED (built-in D1 Mini LED)
+
+| Pattern | Meaning |
+|---|---|
+| Single 600 ms flash on boot | Initialised successfully, ready |
+| Rapid continuous blinking | Error — check SD card and DFPlayer wiring |
