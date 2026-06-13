@@ -115,6 +115,9 @@ void loop()
         if (vol != lastVol) {
             player.volume(vol);
             lastVol = vol;
+            Serial.print("[doorbell] volume changed: ");
+            Serial.print(vol);
+            Serial.println(" (min: 0, max: 30)");
         }
     }
 #endif
