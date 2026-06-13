@@ -12,7 +12,7 @@
 // ── Config ───────────────────────────────────────────────────────────────────
 #define DEBOUNCE_MS 80  // ms to wait for button contact to settle
 
-// Uncomment to control volume via a potentiometer on A0 (10 kΩ, wired 3.3V→wiper→GND).
+// Uncomment to control volume via a potentiometer on A0 (100 kΩ, wired 3.3V→wiper→GND).
 // When disabled, VOLUME is used instead.
 #define USE_POT
 #define VOLUME 30       // 0–30, used only when USE_POT is not defined

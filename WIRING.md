@@ -27,7 +27,7 @@
 
 ### Volume potentiometer (optional)
 
-Connect a 10 kΩ potentiometer to A0 to control volume at runtime. Enable it by uncommenting `#define USE_POT` in `src/main.cpp`.
+Connect a 100 kΩ potentiometer to A0 to control volume at runtime. Enable it by uncommenting `#define USE_POT` in `src/main.cpp`.
 
 | D1 Mini pin | Potentiometer |
 |---|---|
@@ -63,7 +63,7 @@ Use **one** of these two options depending on your amplifier:
 | DAC_L | Left channel (optional) |
 | GND | Amplifier ground |
 
-If your amplifier is mono, connect DAC_R (or bridge DAC_R+DAC_L via equal 10 kΩ resistors to a single input).
+If your amplifier is mono, connect DAC_R (or bridge DAC_R+DAC_L via equal 100 kΩ resistors to a single input).
 
 ---
 
