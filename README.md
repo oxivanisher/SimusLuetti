@@ -26,4 +26,11 @@ Two constants at the top of [src/main.cpp](src/main.cpp):
 | `VOLUME` | `30` | Playback volume (0–30), used only when `USE_POT` is not defined |
 | `DEBOUNCE_MS` | `80` | Button debounce window in milliseconds |
 
-Uncomment `#define USE_POT` in [src/main.cpp](src/main.cpp) to control volume via a 100 kΩ potentiometer on A0 instead of the fixed value. See [WIRING.md](WIRING.md) for wiring details.
+**Optional features** — toggle by commenting/uncommenting in [src/main.cpp](src/main.cpp):
+
+| Define | Default | Description |
+|---|---|---|
+| `USE_POT` | on | Volume controlled by 100 kΩ potentiometer on A0; falls back to `VOLUME` when off |
+| `USE_EXTERNAL_AMP` | on | Uses DAC line-level output with automatic mute when idle; comment out for onboard SPK amp |
+
+See [WIRING.md](WIRING.md) for wiring details for both options.

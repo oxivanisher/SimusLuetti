@@ -17,11 +17,17 @@
 #define USE_POT
 #define VOLUME 30       // 0–30, used only when USE_POT is not defined
 
+// Comment out to use the DFPlayer onboard SPK amplifier instead of DAC line-level output.
+// When enabled, DAC output is muted when idle to suppress hiss through the external amplifier.
+#define USE_EXTERNAL_AMP
+
 SoftwareSerial dfSerial(PIN_DF_RX, PIN_DF_TX);
 DFRobotDFPlayerMini player;
 
-int totalTracks = 0;
-int lastTrack   = -1;
+int           totalTracks   = 0;
+int           lastTrack     = -1;
+bool          wasPlaying    = false;
+unsigned long playStartTime = 0;
 
 bool isPlaying()
 {
@@ -65,8 +71,8 @@ void setup()
     dfSerial.begin(9600);
     delay(1000); // give DFPlayer time to power up before talking to it
 
-    // isACK=false, doReset=false: skip handshake entirely — more tolerant of clones
-    player.begin(dfSerial, false, false);
+    // isACK=false, doReset=true: reset clears any leftover state from previous firmware runs
+    player.begin(dfSerial, false, true);
     delay(500);
     Serial.println("[doorbell] DFPlayer init sent");
 
@@ -98,6 +104,11 @@ void setup()
         blinkPanic("[doorbell] halted");
     }
 
+#ifdef USE_EXTERNAL_AMP
+    player.disableDAC();
+    Serial.println("[doorbell] DAC mute enabled (external amp mode)");
+#endif
+
     // Single long flash → ready.
     digitalWrite(LED_BUILTIN, LOW);
     delay(600);
@@ -112,13 +123,21 @@ void loop()
     if (millis() - lastVolCheck > 200) {
         lastVolCheck = millis();
         int vol = readVolume();
-        if (vol != lastVol) {
+        if (abs(vol - lastVol) > 1) {
             player.volume(vol);
             lastVol = vol;
             Serial.print("[doorbell] volume changed: ");
             Serial.print(vol);
             Serial.println(" (min: 0, max: 30)");
         }
+    }
+#endif
+
+#ifdef USE_EXTERNAL_AMP
+    if (wasPlaying && !isPlaying() && (millis() - playStartTime > 500)) {
+        player.disableDAC();
+        wasPlaying = false;
+        Serial.println("[doorbell] playback ended, DAC muted");
     }
 #endif
 
@@ -147,7 +166,12 @@ void loop()
             lastTrack = track;
             Serial.print("[doorbell] playing track ");
             Serial.println(track);
+#ifdef USE_EXTERNAL_AMP
+            player.enableDAC();
+#endif
             player.play(track);
+            wasPlaying    = true;
+            playStartTime = millis();
         }
     }
 }
