@@ -23,5 +23,7 @@ Two constants at the top of [src/main.cpp](src/main.cpp):
 
 | Constant | Default | Description |
 |---|---|---|
-| `VOLUME` | `30` | Playback volume (0–30) |
+| `VOLUME` | `30` | Playback volume (0–30), used only when `USE_POT` is not defined |
 | `DEBOUNCE_MS` | `80` | Button debounce window in milliseconds |
+
+Uncomment `#define USE_POT` in [src/main.cpp](src/main.cpp) to control volume via a 10 kΩ potentiometer on A0 instead of the fixed value. See [WIRING.md](WIRING.md) for wiring details.

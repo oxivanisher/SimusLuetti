@@ -4,14 +4,18 @@
 #include <ESP8266WiFi.h>
 
 // ── Pin assignments ──────────────────────────────────────────────────────────
-#define PIN_BUTTON D7  // GPIO13 — doorbell wire (active-low, internal pull-up)
-#define PIN_DF_RX D5   // GPIO14 — data from DFPlayer TX
-#define PIN_DF_TX D6   // GPIO12 — data to DFPlayer RX (via 1 kΩ series resistor)
-#define PIN_DF_BUSY D1 // GPIO5  — DFPlayer BUSY line (LOW = currently playing)
+#define PIN_BUTTON  D7  // GPIO13 — doorbell wire (active-low, internal pull-up)
+#define PIN_DF_RX   D5  // GPIO14 — data from DFPlayer TX
+#define PIN_DF_TX   D6  // GPIO12 — data to DFPlayer RX (via 1 kΩ series resistor)
+#define PIN_DF_BUSY D1  // GPIO5  — DFPlayer BUSY line (LOW = currently playing)
 
 // ── Config ───────────────────────────────────────────────────────────────────
-#define VOLUME 30      // 0–30
-#define DEBOUNCE_MS 80 // ms to wait for button contact to settle
+#define DEBOUNCE_MS 80  // ms to wait for button contact to settle
+
+// Uncomment to control volume via a potentiometer on A0 (10 kΩ, wired 3.3V→wiper→GND).
+// When disabled, VOLUME is used instead.
+#define USE_POT
+#define VOLUME 30       // 0–30, used only when USE_POT is not defined
 
 SoftwareSerial dfSerial(PIN_DF_RX, PIN_DF_TX);
 DFRobotDFPlayerMini player;
@@ -36,6 +40,13 @@ void blinkPanic(const char *msg)
     }
 }
 
+#ifdef USE_POT
+int readVolume()
+{
+    return map(analogRead(A0), 0, 1023, 0, 30);
+}
+#endif
+
 void setup()
 {
     Serial.begin(115200);
@@ -59,7 +70,18 @@ void setup()
     delay(500);
     Serial.println("[doorbell] DFPlayer init sent");
 
+#ifdef USE_POT
+    player.volume(readVolume());
+    Serial.print("[doorbell] volume (pot): ");
+    Serial.println(readVolume());
+    randomSeed(analogRead(A0) ^ (millis() << 8));
+#else
     player.volume(VOLUME);
+    Serial.print("[doorbell] volume (fixed): ");
+    Serial.println(VOLUME);
+    randomSeed(analogRead(A0) ^ (millis() << 8));
+#endif
+
     delay(200);
 
     for (int attempt = 1; attempt <= 5 && totalTracks <= 0; attempt++) {
@@ -76,9 +98,6 @@ void setup()
         blinkPanic("[doorbell] halted");
     }
 
-    // Mix analog noise + time for a good-enough random seed.
-    randomSeed(analogRead(A0) ^ (millis() << 8));
-
     // Single long flash → ready.
     digitalWrite(LED_BUILTIN, LOW);
     delay(600);
@@ -87,8 +106,21 @@ void setup()
 
 void loop()
 {
+#ifdef USE_POT
+    static int lastVol = -1;
+    static unsigned long lastVolCheck = 0;
+    if (millis() - lastVolCheck > 200) {
+        lastVolCheck = millis();
+        int vol = readVolume();
+        if (vol != lastVol) {
+            player.volume(vol);
+            lastVol = vol;
+        }
+    }
+#endif
+
     static bool stableState = HIGH;
-    static bool lastRaw = HIGH;
+    static bool lastRaw     = HIGH;
     static unsigned long lastChange = 0;
 
     bool raw = digitalRead(PIN_BUTTON);
@@ -96,7 +128,7 @@ void loop()
     if (raw != lastRaw)
     {
         lastChange = millis();
-        lastRaw = raw;
+        lastRaw    = raw;
     }
 
     // Stable edge detected after debounce window

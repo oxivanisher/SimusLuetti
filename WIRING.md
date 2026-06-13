@@ -25,6 +25,16 @@
 | D6 (GPIO12) | DF_TX | RX | Serial data to DFPlayer — **put 1 kΩ resistor in series** |
 | D1 (GPIO5) | DF_BUSY | BUSY | LOW while a track plays |
 
+### Volume potentiometer (optional)
+
+Connect a 10 kΩ potentiometer to A0 to control volume at runtime. Enable it by uncommenting `#define USE_POT` in `src/main.cpp`.
+
+| D1 Mini pin | Potentiometer |
+|---|---|
+| 3.3V | Left leg |
+| A0 | Wiper (middle) |
+| GND | Right leg |
+
 ### Doorbell button
 
 | D1 Mini pin | Button wire |
